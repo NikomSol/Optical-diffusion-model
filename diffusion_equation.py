@@ -34,10 +34,26 @@ class DiffusionEquation():
         M = cnf['M']
         dm = cnf['dm']
 
+        """n from 1 to N-2, m from 1 to M-2"""
         matrix_equation = sp.coo_matrix(([dm * dm, dm * dm, dn * dn, dn * dn, -2 * dn * dn + -2 * dm * dm],
                                          ([0, 0, 0, 0, 0],
                                           [M * (n - 1) + m, M * (n + 1) + m, M * n + m - 1, M * n + m + 1, M * n + m])),
-                                        shape=(1, N*M))
+                                        shape=(1, N * M))
+        """m from 1 to M-2"""
+        matrix_Nstart = sp.coo_matrix(([dn * bound_conditions['Nstart'][m][0] - bound_conditions['Nstart'][m][1],
+                                        bound_conditions['Nstart'][m][1]],
+                                       ([0, 0], [0 * M + m, 1 * M + m])), shape=(1, N * M))
+        matrix_Nend = sp.coo_matrix(([-bound_conditions['Nend'][m][1],
+                                      dn * bound_conditions['Nend'][m][0] + bound_conditions['Nend'][m][1]],
+                                     ([0, 0], [(N - 2) * M + m, (N - 1) * M + m])), shape=(1, N * M))
+
+        """n from 1 to N-2"""
+        # matrix_Mstart = sp.coo_matrix(([dn * bound_conditions['Nstart'][m][0] - bound_conditions['Nstart'][m][1],
+        #                                 bound_conditions['Nstart'][m][1]],
+        #                                ([0, 0], [0 * M + m, 1 * M + m])), shape=(1, N * M))
+        # matrix_Mend = sp.coo_matrix(([-bound_conditions['Nend'][m][1],
+        #                               dn * bound_conditions['Nend'][m][0] + bound_conditions['Nend'][m][1]],
+        #                              ([0, 0], [(N - 2) * M + m, (N - 1) * M + m])), shape=(1, N * M))
 
         # solution = spsolve(matrix.tocsr(), vector)
         return solution
