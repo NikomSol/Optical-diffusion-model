@@ -29,15 +29,16 @@ class DiffusionEquation():
 
     @classmethod
     def static_2D(self, cnf, properties, bound_conditions, sources):
-        N = cnf['N']
-        dn = cnf['dn']
-        M = cnf['M']
-        dm = cnf['dm']
-
-        matrix_equation = sp.coo_matrix(([dm * dm, dm * dm, dn * dn, dn * dn, -2 * dn * dn + -2 * dm * dm],
-                                         ([0, 0, 0, 0, 0],
-                                          [M * (n - 1) + m, M * (n + 1) + m, M * n + m - 1, M * n + m + 1, M * n + m])),
-                                        shape=(1, N*M))
+        pass
+        # N = cnf['N']
+        # dn = cnf['dn']
+        # M = cnf['M']
+        # dm = cnf['dm']
+        #
+        # matrix_equation = sp.coo_matrix(([dm * dm, dm * dm, dn * dn, dn * dn, -2 * dn * dn + -2 * dm * dm],
+        #                                  ([0, 0, 0, 0, 0],
+        #                                   [M * (n - 1) + m, M * (n + 1) + m, M * n + m - 1, M * n + m + 1, M * n + m])),
+        #                                 shape=(1, N*M))
 
         # solution = spsolve(matrix.tocsr(), vector)
         return solution

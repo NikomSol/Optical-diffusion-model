@@ -27,14 +27,14 @@ solution_static_1D = DiffusionEquation.static_1D(cnf, properties_static_1D, boun
                                                  sources_static_1D)
 print(solution_static_1D)
 
-properties_static_2D = 0.6 / 4200 / 1000 * np.ones(cnf['N'], cnf['M'])
-sources_static_2D = 0 * (10 ** (-6)) * np.ones(cnf['N'], cnf['M'])
-bound_conditions_static_2D = {
-    'Nstart': cnf['M'] * [[1, 0, 1]],
-    'Nend': cnf['M'] * [[1, 0, 1]],
-    'Mstart': cnf['N'] * [[1, 0, 1]],
-    'Mend': cnf['N'] * [[1, 0, 1]]}
-
-solution_static_2D = DiffusionEquation.static_2D(cnf, properties_static_2D, bound_conditions_static_2D,
-                                                 sources_static_2D)
-print(solution_static_2D)
+# properties_static_2D = 0.6 / 4200 / 1000 * np.ones(cnf['N'], cnf['M'])
+# sources_static_2D = 0 * (10 ** (-6)) * np.ones(cnf['N'], cnf['M'])
+# bound_conditions_static_2D = {
+#     'Nstart': cnf['M'] * [[1, 0, 1]],
+#     'Nend': cnf['M'] * [[1, 0, 1]],
+#     'Mstart': cnf['N'] * [[1, 0, 1]],
+#     'Mend': cnf['N'] * [[1, 0, 1]]}
+#
+# solution_static_2D = DiffusionEquation.static_2D(cnf, properties_static_2D, bound_conditions_static_2D,
+#                                                  sources_static_2D)
+# print(solution_static_2D)
