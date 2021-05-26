@@ -7,6 +7,23 @@ class ElectroDiffusionEquation():
 
     @classmethod
     def static_1D_real(self, cnf, properties, bound_conditions):
+        # cnf = {
+        #     'N': 4 * 10 ** 0,
+        #     'dn': 10 ** (-10),
+        #     'eps0': 8.85 * 10 ** (-12)
+        # }
+        # properties = {
+        #     'sigma': np.ones(cnf['N']) * 10 ** (-3),
+        #     'epsilon': np.ones(cnf['N']) * 1,
+        #     'diffusion': np.ones(cnf['N']) * 10 ** (-9)
+        # }
+        # bound_conditions = {
+        #     'N_start_potential': [1, 0, 0],
+        #     'N_end_potential': [1, 0, 1],
+        #     'N_start_charge': [1, 0, 0],
+        #     'N_end_charge': [0, 1, 0]
+        # }
+
         N = cnf['N']
         dn = cnf['dn']
         inv_dn = 1 / dn
@@ -71,3 +88,29 @@ class ElectroDiffusionEquation():
         print(matrix.toarray())
         solution = spsolve(matrix.tocsr(), vector)
         return solution
+
+    def static_2D_real(self, cnf, properties, bound_conditions):
+        # cnf = {
+        #     'N': 4 * 10 ** 0,
+        #     'M': 3,
+        #     'dn': 10 ** (-10),
+        #     'dm': 0.1,
+        #     'eps0': 8.85 * 10 ** (-12)
+        # }
+        # properties = {
+        #     'sigma': np.ones((cnf['N'],cnf['M'])) * 10 ** (-3),
+        #     'epsilon': np.ones((cnf['N'],cnf['M'])) * 1,
+        #     'diffusion': np.ones((cnf['N'],cnf['M'])) * 10 ** (-9)
+        # }
+        # bound_conditions = {
+        #     'N_start_potential': cnf['M']*[[1, 0, 0]],
+        #     'N_end_potential': cnf['M']*[[1, 0, 1]],
+        #     'N_start_charge': cnf['M']*[[1, 0, 0]],
+        #     'N_end_charge': cnf['M']*[[0, 1, 0]],
+        #
+        #     'M_start_potential': cnf['N'] * [[1, 0, 0]],
+        #     'M_end_potential': cnf['N'] * [[1, 0, 1]],
+        #     'M_start_charge': cnf['N'] * [[1, 0, 0]],
+        #     'M_end_charge': cnf['N'] * [[0, 1, 0]]
+        # }
+        pass
