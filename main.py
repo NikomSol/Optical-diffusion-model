@@ -1,40 +1,44 @@
 import numpy as np
 from diffusion_equation import DiffusionEquation
+from electrodiffusion_equation import ElectroDiffusionEquation
+import matplotlib.pyplot as plt
 
 cnf = {
     'K': 3,
-    'N': 10,
+    'N': 4*10 ** 0,
     'M': 3,
     'dk': 0.1,
-    'dn': 0.1,
-    'dm': 0.1
+    'dn': 10 ** (-10),
+    'dm': 0.1,
+
+    'eps0': 8.85 * 10 ** (-12)
 }
-properties = 0.6 / 4200 / 1000 * np.ones((cnf['K'], cnf['N'], cnf['M']))
-sources = 0 * np.ones((cnf['K'], cnf['N'], cnf['M']))
-start_conditions = np.ones((cnf['N'], cnf['M']))
-bound_conditions = cnf['K'] * [
-    {'Nstart': cnf['M'] * [[1, 0, 1]],
-     'Nend': cnf['M'] * [[1, 0, 1]],
-     'Mstart': cnf['N'] * [[1, 0, 1]],
-     'Mend': cnf['N'] * [[1, 0, 1]]}
-]
+properties = {
+    'sigma': np.ones(cnf['N']) * 10 ** (-3),
+    'epsilon': np.ones(cnf['N']) * 1,
+    'diffusion': np.ones(cnf['N']) * 10 ** (-9)
+}
 
-properties_static_1D = 0.6 / 4200 / 1000 * np.ones(cnf['N'])
-sources_static_1D = 0 * (10 ** (-6)) * np.ones(cnf['N'])
-bound_conditions_static_1D = {'Nstart': [1, -1, 0], 'Nend': [1, 0, 1]}
+# sources = 0 * np.ones((cnf['K'], cnf['N'], cnf['M']))
+# start_conditions = np.ones((cnf['N'], cnf['M']))
 
-solution_static_1D = DiffusionEquation.static_1D(cnf, properties_static_1D, bound_conditions_static_1D,
-                                                 sources_static_1D)
-print(solution_static_1D)
+bound_conditions = {
+    'N_start_potential': [1, 0, 0],
+    'N_end_potential': [1, 0, 1],
+    'N_start_charge': [1, 0, 0],
+    'N_end_charge': [0, 1, 0]
+}
 
-properties_static_2D = 0.6 / 4200 / 1000 * np.ones(cnf['N'], cnf['M'])
-sources_static_2D = 0 * (10 ** (-6)) * np.ones(cnf['N'], cnf['M'])
-bound_conditions_static_2D = {
-    'Nstart': cnf['M'] * [[1, 0, 1]],
-    'Nend': cnf['M'] * [[1, 0, 1]],
-    'Mstart': cnf['N'] * [[1, 0, 1]],
-    'Mend': cnf['N'] * [[1, 0, 1]]}
+solution_static_1D = ElectroDiffusionEquation.static_1D_real(cnf, properties, bound_conditions)
+u, v = solution_static_1D[:cnf['N']], solution_static_1D[cnf['N']:]
 
-solution_static_2D = DiffusionEquation.static_2D(cnf, properties_static_2D, bound_conditions_static_2D,
-                                                 sources_static_2D)
-print(solution_static_2D)
+# print(v[0])
+# print(v[-1])
+
+plt.figure(figsize=(12, 7))
+
+plt.subplot(2, 1, 1)
+plt.plot(u)
+plt.subplot(2, 1, 2)
+plt.plot(v)
+plt.show()
