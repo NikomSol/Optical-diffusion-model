@@ -57,18 +57,6 @@ class ElectroDiffusionEquation():
             sys_matryx = (self.d2('u', 'x', area, np.ones((3,area[1]-area[0]-2))) +
                           self.d2('v', 'x', area, unhomo_diffusion_coefficient))
 
-    def create_sys_matrix_2d(self):
-        pass
-
-    def create_sys_vector_1d(self):
-        pass
-
-    def create_sys_vector_2d(self):
-        pass
-
-    def d2(self, area dif_var, koef):
-    pass
-
 
 def d1(self, nArea, mArea, dif_var, scheme, koef):
     pass
