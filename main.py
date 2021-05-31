@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 
 cnf = {
     'K': 3,
-    'N': 4*10 ** 0,
+    'N': 4,
     'M': 3,
     'dk': 0.1,
-    'dn': 10 ** (-10),
+    'dn': 10 ** (-8),
     'dm': 0.1,
 
     'eps0': 8.85 * 10 ** (-12)
@@ -29,7 +29,7 @@ bound_conditions = {
     'N_end_charge': [0, 1, 0]
 }
 
-solution_static_1D = ElectroDiffusionEquation.static_1D_real(cnf, properties, bound_conditions)
+solution_static_1D = ElectroDiffusionEquation.static_1D_real_anizotropic_mod(cnf, properties, bound_conditions)
 u, v = solution_static_1D[:cnf['N']], solution_static_1D[cnf['N']:]
 
 # print(v[0])
