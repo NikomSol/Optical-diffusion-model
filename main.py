@@ -1,44 +1,48 @@
-import numpy as np
-from diffusion_equation import DiffusionEquation
-from electrodiffusion_equation import ElectroDiffusionEquation
-import matplotlib.pyplot as plt
+from helper_classes import Config, Geometry, Properties, Conditions
+from solver import Solver
 
-cnf = {
-    'K': 3,
-    'N': 4,
-    'M': 3,
-    'dk': 0.1,
-    'dn': 10 ** (-8),
-    'dm': 0.1,
+cnf = Config(K=10, dk=10 ** (-6),
+             N=9, dn=10 ** (-6),
+             M=9, dm=10 ** (-6),
+             symmetry='decart',
+             T0=273)
 
-    'eps0': 8.85 * 10 ** (-12)
-}
-properties = {
-    'sigma': np.ones(cnf['N']) * 10 ** (-3),
-    'epsilon': np.ones(cnf['N']) * 1,
-    'diffusion': np.ones(cnf['N']) * 10 ** (-9)
-}
 
-# sources = 0 * np.ones((cnf['K'], cnf['N'], cnf['M']))
-# start_conditions = np.ones((cnf['N'], cnf['M']))
+def internal_area(n, m):
+    return 'potata' if (n >= 4) else 'air'
 
-bound_conditions = {
-    'N_start_potential': [1, 0, 0],
-    'N_end_potential': [1, 0, 1],
-    'N_start_charge': [1, 0, 0],
-    'N_end_charge': [0, 1, 0]
-}
 
-solution_static_1D = ElectroDiffusionEquation.static_1D_real_anizotropic_mod(cnf, properties, bound_conditions)
-u, v = solution_static_1D[:cnf['N']], solution_static_1D[cnf['N']:]
+geometry = Geometry(cnf, internal_area)
+property = Properties(cnf, geometry)
 
-# print(v[0])
-# print(v[-1])
+m_electrode_1 = 3
+m_electrode_2 = 5
+bound_nStart_electrode_1 = geometry.get_bound('internal', 'nStart', only=[m_electrode_1])
+bound_nStart_electrode_2 = geometry.get_bound('internal', 'nStart', only=[m_electrode_2])
+bound_nStart_non_electrode = geometry.get_bound('internal', 'nStart', without=[m_electrode_1, m_electrode_2])
 
-plt.figure(figsize=(12, 7))
+conditions = Conditions(
+    cnf, geometry,
 
-plt.subplot(2, 1, 1)
-plt.plot(u)
-plt.subplot(2, 1, 2)
-plt.plot(v)
-plt.show()
+    termo_start=[Conditions.Start(cnf.T0)],
+
+    termo_boundary=[Conditions.Dirichlet('external', cnf.T0), Conditions.Continuity('internal')],
+
+    optic_boundaty=[Conditions.Dirichlet('internal', 'nStart', 0)],
+
+    charge_boundary=[Conditions.Dirichlet('internal', 'nStart', 0)],
+
+    potential_boundary=[Conditions.Dirichlet('internal', 'nStart', 0)]
+)
+
+
+def gauss(x, y):
+    pass
+
+
+sources = Sources(optic=gauss(x, y))
+
+solution = Solver(cnf, geometry, property, conditions, sources)
+
+solution.plot3D(z='T', y='n', x='k', par=[1])
+solution.export(x='n', y='T', par=[1, 2], "result.csv")
