@@ -40,7 +40,7 @@ property = Properties(cnf, geometry)
 conditions = Conditions(
     cnf, geometry,
 
-    termo_start=[Conditions.Start(domain_tissue,cnf.T0 * np.ones((cnf.N-nTissueStart,M)))],
+    termo_start=[Conditions.Start(domain_tissue, cnf.T0 * np.ones((cnf.N - nTissueStart, M)))],
 
     termo_boundary=[Conditions.Newton(bound_tissue_nStart, cnf.T0 * np.ones(M), h='h'),
                     Conditions.Neumann(bound_tissue_nEnd, np.zeros(M)),
@@ -76,9 +76,10 @@ conditions = Conditions(
 def gauss(x, y, t):
     pass
 
-sources = Sources(cnf, geometry, optic=gauss(x, y, t))
+
+sources = Sources(cnf, geometry, optic=gauss)
 
 solution = Solver(cnf, geometry, property, conditions, sources)
 
-solution.plot3D(z='T', y='n', x='k', par=[1])
-solution.export(x='n', y='T', par=[1, 2], "result.csv")
+solution.plot3D(z='T', y='n', x='k', slices=[1])
+solution.export(x='n', y='T', slices=[1, 2], file_name="result.csv")

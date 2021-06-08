@@ -102,6 +102,13 @@ class Geometry():
                     coordinates = np.array([[n, M - 1] for n in np.delete(np.arange(nTissueStart, N), without)])
                 return Boundary(coordinates, normal)
 
+    def get_domain(self, name):
+        domain_matrix = self.domain_matrix
+        cnf = self.cnf
+        N = cnf.N
+        M = cnf.M
+        return np.array([[1 if domain_matrix[i][j] == name else 0 for j in range(M)] for i in range(N)])
+
 
 class Boundary():
     def __init__(self, coordinates, normal):
@@ -162,18 +169,17 @@ class Properties():
         self.geometry = geometry
 
     def get_property_table(self, property, temperature, condition):
-        domain_matrix = self.geometry.domain_matrix
         cnf = self.cnf
         N = cnf.N
         M = cnf.M
+
+        tissue_matrix = self.geometry.get_domain('tissue')
+        air_matrix = np.ones((N, M)) - tissue_matrix
         # TODO: create temperature and condition dependence
         air_properties = self.air_properties[property] * condition
         tissue_properties = self.tissue_properties_native[property] * condition
 
-        return np.array(
-            [[air_properties[i][j] if domain_matrix[i][j] == 'air' else tissue_properties[i][j]
-              for j in range(M)]
-             for i in range(N)])
+        return tissue_matrix * tissue_properties + air_properties * air_matrix
 
 
 class Conditions():
@@ -182,6 +188,10 @@ class Conditions():
                  termo_boundary=[], optic_boundaty=[], charge_boundary=[], potential_boundary=[]):
         self.cnf = cnf
         self.geometry = geometry
+
+    @classmethod
+    def Start(self, domain, value):
+        pass
 
     @classmethod
     def Dirichlet(self, bound, value):
@@ -223,6 +233,6 @@ if __name__ == '__main__':
     property = Properties(cnf, geometry)
     temp = cnf.T0 * np.ones((cnf.N, cnf.M))
     cond = np.ones((cnf.N, cnf.M))
-    # print(property.get_property_table('eps', temp, cond))
+    print(property.get_property_table('eps', temp, cond))
 
     sources = Sources(cnf, geometry)
