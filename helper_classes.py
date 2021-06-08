@@ -109,6 +109,13 @@ class Geometry():
         M = cnf.M
         return np.array([[1 if domain_matrix[i][j] == name else 0 for j in range(M)] for i in range(N)])
 
+    def get_tissue_shape(self):
+        cnf = self.cnf
+        N = cnf.N
+        M = cnf.M
+        nTissueStart = self.nTissueStart
+        return N - nTissueStart, M
+
 
 class Boundary():
     def __init__(self, coordinates, normal):
@@ -168,7 +175,7 @@ class Properties():
         self.cnf = cnf
         self.geometry = geometry
 
-    def get_property_table(self, property, temperature, condition):
+    def get_property_table(self, property, temperature, state):
         cnf = self.cnf
         N = cnf.N
         M = cnf.M
@@ -176,18 +183,26 @@ class Properties():
         tissue_matrix = self.geometry.get_domain('tissue')
         air_matrix = np.ones((N, M)) - tissue_matrix
         # TODO: create temperature and condition dependence
-        air_properties = self.air_properties[property] * condition
-        tissue_properties = self.tissue_properties_native[property] * condition
+        air_properties = self.air_properties[property] * state
+        tissue_properties = self.tissue_properties_native[property] * state
 
         return tissue_matrix * tissue_properties + air_properties * air_matrix
 
 
 class Conditions():
     def __init__(self, cnf, geometry,
-                 termo_start=[],
+                 termo_start=[], state_start=[],
                  termo_boundary=[], optic_boundaty=[], charge_boundary=[], potential_boundary=[]):
         self.cnf = cnf
         self.geometry = geometry
+        self.termo_start = termo_start
+        self.state_start = state_start
+
+    def get_start_temperature(self):
+        return self.termo_start
+
+    def get_start_state(self):
+        return self.state_start
 
     @classmethod
     def Start(self, domain, value):
