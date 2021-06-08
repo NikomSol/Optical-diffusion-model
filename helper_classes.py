@@ -102,12 +102,33 @@ class Geometry():
                     coordinates = np.array([[n, M - 1] for n in np.delete(np.arange(nTissueStart, N), without)])
                 return Boundary(coordinates, normal)
 
-    def get_domain(self, name):
+    def get_domain_matrix(self, name):
         domain_matrix = self.domain_matrix
         cnf = self.cnf
         N = cnf.N
         M = cnf.M
         return np.array([[1 if domain_matrix[i][j] == name else 0 for j in range(M)] for i in range(N)])
+
+    def get_domain_coordinates(self, name, internal=False):
+        cnf = self.cnf
+        N = cnf.N
+        M = cnf.M
+        domain_matrix = self.domain_matrix
+
+        coordinate = []
+        if internal:
+            for n in range(1,N-1):
+                for m in range(1,M-1):
+                    if ((domain_matrix[n][m] == name) &
+                            (domain_matrix[n + 1][m] == name) & (domain_matrix[n - 1][m] == name) &
+                            (domain_matrix[n][m + 1] == name) & (domain_matrix[n][m - 1] == name)):
+                        coordinate += [[n, m]]
+        else:
+            for n in range(N):
+                for m in range(M):
+                    if domain_matrix[n][m] == name:
+                        coordinate += [[n, m]]
+        return np.array(coordinate)
 
     def get_tissue_shape(self):
         cnf = self.cnf
@@ -188,6 +209,9 @@ class Properties():
 
         return tissue_matrix * tissue_properties + air_properties * air_matrix
 
+    def get_property_table_unhomo(self, property, temperature, state):
+        #TODO:
+        pass
 
 class Conditions():
     def __init__(self, cnf, geometry,
@@ -248,6 +272,7 @@ if __name__ == '__main__':
     property = Properties(cnf, geometry)
     temp = cnf.T0 * np.ones((cnf.N, cnf.M))
     cond = np.ones((cnf.N, cnf.M))
-    print(property.get_property_table('eps', temp, cond))
+    # print(property.get_property_table('eps', temp, cond))
+    print(geometry.get_domain_coordinates('tissue', internal=True))
 
     sources = Sources(cnf, geometry)

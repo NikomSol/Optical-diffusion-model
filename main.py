@@ -32,7 +32,7 @@ bound_tissue_electrode_1 = geometry.get_bound('tissue', 'nStart', only=[3])
 bound_tissue_electrode_2 = geometry.get_bound('tissue', 'nStart', only=[5])
 bound_tissue_non_electrode = geometry.get_bound('tissue', 'nStart', without=[3, 5])
 
-domain_tissue = geometry.get_domain('tissue')
+domain_tissue = geometry.get_domain_matrix('tissue')
 # Свойства различны у разных областей
 property = Properties(cnf, geometry)
 
@@ -82,9 +82,10 @@ def gauss(x, y, t):
 sources = Sources(cnf, geometry, optic=gauss)
 
 solution = Solver(cnf, geometry, property, conditions, sources)
-solution.solve(equation={'T', 'E', 'O'})
+# equations {'E': elecrtodiffusion, 'O': light transfer, 'T': heat transfer}
+solution.solve(equation={'E'})
 
-# print(solution.result['state'])
+print(solution.result['u'])
 
 solution.plot3D(z='T', y='n', x='k', slices=[1])
 solution.export(x='n', y='T', slices=[1, 2], file_name="result.csv")
