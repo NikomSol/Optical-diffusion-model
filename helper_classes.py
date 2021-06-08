@@ -1,27 +1,113 @@
 import numpy as np
 import scipy.sparse as sp
 
-class Config():
-    cnf = {
-        'symmetry': 'descart',
-        'step_number': (9, 9),
-        'step_size': (10 ** -10, 10 ** -10),
 
-        'eps0': 8.85 * 10 ** (-12),
-        'R': 8.31
-    }
+class Config():
+    eps0 = 8.85 * 10 ** (-12),
+    R = 8.31
+
+    def __init__(self, symmetry='decart', T0=273,
+                 K=10, dk=10 ** (-6),
+                 N=9, dn=10 ** (-6),
+                 M=9, dm=10 ** (-6)):
+        self.K = K
+        self.N = N
+        self.M = M
+        self.dk = dk
+        self.dn = dn
+        self.dm = dm
+        self.symmetry = symmetry
+        self.T0 = T0
+
 
 class Geometry():
-    def __init__(self, area_function):
-        cnf = Config.cnf
+    def __init__(self, cnf, type="slice", nTissueStart=5):
+        self.cnf = cnf
+        self.type = type
+        self.nTissueStart = nTissueStart
 
-        step_number = cnf['step_number']
-        step_size = cnf['step_size']
+        N = cnf.N
+        M = cnf.M
 
-        x_array = np.arange(step_number[0])  # np.linspace(0, step_number[0] * step_size[0], step_number[0])
-        y_array = np.arange(step_number[1])  # np.linspace(0, step_number[1] * step_size[1], step_number[1])
-                                             # [x_mesh, y_mesh] = np.meshgrid(x_array, y_array)
-        self.area_matrix = [[area_function(x, y) for x in x_array] for y in y_array]
+        if type == 'slice':
+            self.domain_matrix = nTissueStart * [M * ['air']] + (N - nTissueStart) * [M * ['tissue']]
+        else:
+            raise ValueError("Unknown geometry type")
+
+    def get_bound(self, domain, bound, only=False, without=[]):
+        cnf = self.cnf
+        N = cnf.N
+        M = cnf.M
+        nTissueStart = self.nTissueStart
+
+        if domain is 'air':
+            if bound is 'nStart':
+                normal = [-1, 0]
+                if only:
+                    coordinates = np.array([[0, m] for m in only])
+                else:
+                    coordinates = np.array([[0, m] for m in np.delete(np.arange(M), without)])
+                return Boundary(coordinates, normal)
+            if bound is 'nEnd':
+                normal = [1, 0]
+                if only:
+                    coordinates = np.array([[nTissueStart - 1, m] for m in only])
+                else:
+                    coordinates = np.array([[nTissueStart - 1, m] for m in np.delete(np.arange(M), without)])
+                return Boundary(coordinates, normal)
+
+            if bound is 'mStart':
+                normal = [0, -1]
+                if only:
+                    coordinates = np.array([[n, 0] for n in only])
+                else:
+                    coordinates = np.array([[n, 0] for n in np.delete(np.arange(nTissueStart), without)])
+                return Boundary(coordinates, normal)
+            if bound is 'mEnd':
+                normal = [0, 1]
+                if only:
+                    coordinates = np.array([[n, M - 1] for n in only])
+                else:
+                    coordinates = np.array([[n, M - 1] for n in np.delete(np.arange(nTissueStart), without)])
+                return Boundary(coordinates, normal)
+
+        if domain is 'tissue':
+            if bound is 'nStart':
+                normal = [-1, 0]
+                if only:
+                    coordinates = np.array([[nTissueStart, m] for m in only])
+                else:
+                    coordinates = np.array([[nTissueStart, m] for m in np.delete(np.arange(M), without)])
+                return Boundary(coordinates, normal)
+            if bound is 'nEnd':
+                normal = [1, 0]
+                if only:
+                    coordinates = np.array([[N - 1, m] for m in only])
+                else:
+                    coordinates = np.array([[N - 1, m] for m in np.delete(np.arange(M), without)])
+                return Boundary(coordinates, normal)
+
+            if bound is 'mStart':
+                normal = [0, -1]
+                if only:
+                    coordinates = np.array([[n, 0] for n in only])
+                else:
+                    coordinates = np.array([[n, 0] for n in np.delete(np.arange(nTissueStart, N), without)])
+                return Boundary(coordinates, normal)
+            if bound is 'mEnd':
+                normal = [0, 1]
+                if only:
+                    coordinates = np.array([[n, M - 1] for n in only])
+                else:
+                    coordinates = np.array([[n, M - 1] for n in np.delete(np.arange(nTissueStart, N), without)])
+                return Boundary(coordinates, normal)
+
+
+class Boundary():
+    def __init__(self, coordinates, normal):
+        self.coordinates = coordinates
+        self.normal = normal
+
 
 class Properties():
     air_properties = {
@@ -38,7 +124,7 @@ class Properties():
         'heat_capacity': 0,
     }
 
-    potato_native = {
+    tissue_properties_native = {
         'eps': 81,
         'mobility': 10 ** (-5),
         'ion_concentration': 1,
@@ -52,7 +138,7 @@ class Properties():
         'heat_capacity': 4200,
     }
 
-    potato_degraded = {
+    tissue_properties_degraded = {
         'eps': 81,
         'mobility': 10 ** (-5),
         'ion_concentration': 1,
@@ -66,21 +152,77 @@ class Properties():
         'heat_capacity': 4200,
     }
 
-    potato_Arrenius = {
+    tissue_properties_Arrenius = {
         'arr_velocity': 1,
         'arr_energy': 1
     }
 
-    def __init__(self, geometry, temperature, conditions):
+    def __init__(self, cnf, geometry):
+        self.cnf = cnf
+        self.geometry = geometry
+
+    def get_property_table(self, property, temperature, condition):
+        domain_matrix = self.geometry.domain_matrix
+        cnf = self.cnf
+        N = cnf.N
+        M = cnf.M
+        # TODO: create temperature and condition dependence
+        air_properties = self.air_properties[property] * condition
+        tissue_properties = self.tissue_properties_native[property] * condition
+
+        return np.array(
+            [[air_properties[i][j] if domain_matrix[i][j] == 'air' else tissue_properties[i][j]
+              for j in range(M)]
+             for i in range(N)])
+
+
+class Conditions():
+    def __init__(self, cnf, geometry,
+                 termo_start=[],
+                 termo_boundary=[], optic_boundaty=[], charge_boundary=[], potential_boundary=[]):
+        self.cnf = cnf
+        self.geometry = geometry
+
+    @classmethod
+    def Dirichlet(self, bound, value):
+        pass
+
+    @classmethod
+    def Neumann(self, bound, value):
+        pass
+
+    @classmethod
+    def Newton(self, bound, value, h='ones'):
+        pass
+
+    @classmethod
+    def Continious(self, bound1, bound2, coef_values='ones', coef_differences='ones'):
         pass
 
 
+class Sources():
+    def __init__(self, cnf, geometry,
+                 optic=lambda x, y, t: 0,
+                 termal=lambda x, y, t: 0):
+        self.cnf = cnf
+        self.geometry = geometry
+
+
 if __name__ == '__main__':
+    cnf = Config(K=10, dk=10 ** (-6),
+                 N=9, dn=10 ** (-6),
+                 M=9, dm=10 ** (-6),
+                 symmetry='decart',
+                 T0=273)
+    # print(cnf.N)
 
-    def area_function(x, y):
-        return 'potata' if (x >= 3) & (y >= 3)  else 'air'
+    geometry = Geometry(cnf, type="slice", nTissueStart=5)
+    # print(geometry.domain_matrix)
+    # print(geometry.get_bound('tissue', 'mEnd', without=[7]).coordinates)
 
-    print(Properties.potato_degraded['eps'])
+    property = Properties(cnf, geometry)
+    temp = cnf.T0 * np.ones((cnf.N, cnf.M))
+    cond = np.ones((cnf.N, cnf.M))
+    # print(property.get_property_table('eps', temp, cond))
 
-    geometry = Geometry(area_function)
-    print(geometry.area_matrix)
+    sources = Sources(cnf, geometry)
