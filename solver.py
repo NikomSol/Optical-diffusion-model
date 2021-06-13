@@ -160,8 +160,10 @@ class Solver():
                 sp.coo_matrix((data[1], (row, col - M)), shape=(equa_num, 2 * N * M))
         )
 
+        boundary_matrix = self.conditions.get_boundary_matrix_electrodiffusion()
+
         system_matrix = sp.vstack(
-            [poison_air_matrix, germgolc_air_matrix, poison_tissue_matrix, germgolc_tissue_matrix])
+            [poison_air_matrix, germgolc_air_matrix, poison_tissue_matrix, germgolc_tissue_matrix, boundary_matrix])
         return sp.dia_matrix((np.ones(2 * N * M), 0), shape=(2 * N * M, 2 * N * M))
 
     def create_electrodiffusion_free_vector(self):

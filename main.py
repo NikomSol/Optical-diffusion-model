@@ -37,47 +37,45 @@ domain_tissue = geometry.get_domain_matrix('tissue')
 property = Properties(cnf, geometry)
 
 # Граничные условия могут быть Дирихле, Нейман, Ньютон-Рихман, Непрерывность
-conditions = Conditions(
-    cnf, geometry,
+conditions = Conditions(cnf, geometry, property)
 
-    termo_start=cnf.T0 * np.ones((geometry.get_tissue_shape())),
+conditions.termo_start = cnf.T0 * np.ones((geometry.get_tissue_shape()))
 
-    state_start=np.ones((geometry.get_tissue_shape())),
+conditions.state_start = np.ones((geometry.get_tissue_shape()))
 
-    termo_boundary=[Conditions.Newton(bound_tissue_nStart, cnf.T0 * np.ones(M), h='h'),
-                    Conditions.Neumann(bound_tissue_nEnd, np.zeros(M)),
-                    Conditions.Neumann(bound_tissue_mStart, np.zeros(N)),
-                    Conditions.Neumann(bound_tissue_mEnd, np.zeros(N))],
+conditions.Newton('heat_transfer', bound_tissue_nStart, cnf.T0 * np.ones(M), h='h')
+conditions.Neumann('heat_transfer', bound_tissue_nEnd, np.zeros(M))
+conditions.Neumann('heat_transfer', bound_tissue_mStart, np.zeros(N))
+conditions.Neumann('heat_transfer', bound_tissue_mEnd, np.zeros(N))
 
-    optic_boundaty=[Conditions.Newton(bound_tissue_nStart, np.zeros(M), h='A'),
-                    Conditions.Newton(bound_tissue_nEnd, np.zeros(M), h='D'),
-                    Conditions.Neumann(bound_tissue_mStart, np.zeros(N)),
-                    Conditions.Newton(bound_tissue_mEnd, np.zeros(N), h='D')],
+conditions.Newton('light_transfer', bound_tissue_nStart, np.zeros(M), h='A')
+conditions.Newton('light_transfer', bound_tissue_nEnd, np.zeros(M), h='D')
+conditions.Neumann('light_transfer', bound_tissue_mStart, np.zeros(N))
+conditions.Newton('light_transfer', bound_tissue_mEnd, np.zeros(N), h='D')
 
-    charge_boundary=[Conditions.Neumann(bound_tissue_nStart, np.zeros(M)),
-                     Conditions.Dirichlet(bound_tissue_nEnd, np.zeros(M)),
-                     Conditions.Neumann(bound_tissue_mStart, np.zeros(N)),
-                     Conditions.Dirichlet(bound_tissue_mEnd, np.zeros(N))],
+conditions.Neumann('charge', bound_tissue_nStart, np.zeros(M))
+conditions.Dirichlet('charge', bound_tissue_nEnd, np.zeros(M))
+conditions.Neumann('charge', bound_tissue_mStart, np.zeros(N))
+conditions.Dirichlet('charge', bound_tissue_mEnd, np.zeros(N))
 
-    potential_boundary=[Conditions.Continious(bound_tissue_non_electrode, bound_air_non_electrode, 'ones', 'eps'),
-                        Conditions.Dirichlet(bound_tissue_electrode_1, [1]),
-                        Conditions.Dirichlet(bound_air_electrode_1, [1]),
-                        Conditions.Dirichlet(bound_tissue_electrode_2, [-1]),
-                        Conditions.Dirichlet(bound_air_electrode_2, [-1]),
+conditions.Continious('potential', bound_tissue_non_electrode, bound_air_non_electrode, 'ones', 'eps')
+conditions.Dirichlet('potential', bound_tissue_electrode_1, [1])
+conditions.Dirichlet('potential', bound_air_electrode_1, [1])
+conditions.Dirichlet('potential', bound_tissue_electrode_2, [-1])
+conditions.Dirichlet('potential', bound_air_electrode_2, [-1])
 
-                        Conditions.Neumann(bound_tissue_nEnd, np.zeros(M)),
-                        Conditions.Neumann(bound_tissue_mStart, np.zeros(N)),
-                        Conditions.Neumann(bound_tissue_mEnd, np.zeros(N)),
+conditions.Neumann('potential', bound_tissue_nEnd, np.zeros(M))
+conditions.Neumann('potential', bound_tissue_mStart, np.zeros(N))
+conditions.Neumann('potential', bound_tissue_mEnd, np.zeros(N))
 
-                        Conditions.Neumann(bound_air_nStart, np.zeros(M)),
-                        Conditions.Neumann(bound_air_mStart, np.zeros(N)),
-                        Conditions.Neumann(bound_air_mEnd, np.zeros(N))]
-)
+conditions.Neumann('potential', bound_air_nStart, np.zeros(M))
+conditions.Neumann('potential', bound_air_mStart, np.zeros(N))
+conditions.Neumann('potential', bound_air_mEnd, np.zeros(N))
 
 
 def gauss(x, y, t):
-    #TODO: gauss function
-    return x+y
+    # TODO: gauss function
+    return x + y
 
 
 sources = Sources(cnf, geometry, optic=gauss)

@@ -250,13 +250,23 @@ class Properties():
 
 
 class Conditions():
-    def __init__(self, cnf, geometry,
-                 termo_start=[], state_start=[],
-                 termo_boundary=[], optic_boundaty=[], charge_boundary=[], potential_boundary=[]):
+    def __init__(self, cnf, geometry, properties):
         self.cnf = cnf
+        N = cnf.N
+        M = cnf.M
         self.geometry = geometry
-        self.termo_start = termo_start
-        self.state_start = state_start
+        nTissueStart = geometry.nTissueStart
+        self.properties = properties
+
+        self.termo_start = cnf.T0 * np.ones((N - nTissueStart, M))
+        self.state_start = np.ones((N - nTissueStart, M))
+
+        self.boundary_matrix_electrodiffusion = sp.coo_matrix(([], ([], [])), shape=(0, 2 * N * M))
+        self.boundary_vector_electrodiffusion = np.array([])
+        self.boundary_matrix_heat_transfer = sp.coo_matrix(([], ([], [])), shape=(0, (N - nTissueStart) * M))
+        self.boundary_vector_heat_transfer = np.array([])
+        self.boundary_matrix_light_transfer = sp.coo_matrix(([], ([], [])), shape=(0, (N - nTissueStart) * M))
+        self.boundary_vector_light_transfer = np.array([])
 
     def get_start_temperature(self):
         return self.termo_start
@@ -264,24 +274,53 @@ class Conditions():
     def get_start_state(self):
         return self.state_start
 
-    @classmethod
-    def Start(self, domain, value):
+    def get_boundary_matrix_electrodiffusion(self):
+        return self.boundary_matrix_electrodiffusion
+
+    def Dirichlet(self, equa_name, bound, value):
+        cnf = self.cnf
+        N = cnf.N
+        M = cnf.M
+        nTissueStart = self.geometry.nTissueStart
+        coordinates = bound.coordinates
+
+        #TODO vector len != matrix len
+
+        equa_num = len(coordinates)
+        row = np.arange(equa_num)
+        col = np.array([coo[0] * M + coo[1] for coo in coordinates])
+        data = np.ones(equa_num)
+
+        if equa_name == 'potential':
+            matrix = sp.coo_matrix((data, (row, col)), shape=(equa_num, 2 * N * M))
+            vector = value
+            self.boundary_matrix_electrodiffusion = sp.vstack([self.boundary_matrix_electrodiffusion, matrix])
+            self.boundary_vector_electrodiffusion = np.concatenate([self.boundary_vector_electrodiffusion, vector])
+        elif equa_name == 'charge':
+            matrix = sp.coo_matrix((data, (row, col + N * M)), shape=(equa_num, 2 * N * M))
+            vector = value
+            self.boundary_matrix_electrodiffusion = sp.vstack([self.boundary_matrix_electrodiffusion, matrix])
+            self.boundary_vector_electrodiffusion = np.concatenate([self.boundary_vector_electrodiffusion, vector])
+        elif equa_name == 'heat_transfer':
+            matrix = sp.coo_matrix((data, (row, col)), shape=(equa_num, (N - nTissueStart) * M))
+            vector = value
+            self.boundary_matrix_heat_transfer = sp.vstack([self.boundary_matrix_heat_transfer, matrix])
+            self.boundary_vector_heat_transfer = np.concatenate([self.boundary_vector_heat_transfer, vector])
+        elif equa_name == 'light_transfer':
+            matrix = sp.coo_matrix((data, (row, col)), shape=(equa_num, (N - nTissueStart) * M))
+            vector = value
+            self.boundary_matrix_light_transfer = sp.vstack([self.boundary_matrix_light_transfer, matrix])
+            self.boundary_vector_light_transfer = np.concatenate([self.boundary_vector_light_transfer, vector])
+        else:
+            raise ValueError('unknown equation name')
+
+    def Neumann(self, equa_name, bound, value):
         pass
 
-    @classmethod
-    def Dirichlet(self, bound, value):
+    def Newton(self, equa_name, bound, value, h='ones'):
         pass
 
-    @classmethod
-    def Neumann(self, bound, value):
-        pass
-
-    @classmethod
-    def Newton(self, bound, value, h='ones'):
-        pass
-
-    @classmethod
-    def Continious(self, bound1, bound2, coef_values='ones', coef_differences='ones'):
+    def Continious(self, equa_name, bound1, bound2, coef_values='ones', coef_differences='ones'):
         pass
 
 
