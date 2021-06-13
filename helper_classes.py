@@ -3,8 +3,9 @@ import scipy.sparse as sp
 
 
 class Config():
-    eps0 = 8.85 * 10 ** (-12),
+    eps0 = 8.85 * 10 ** (-12)
     R = 8.31
+    F = 96485.3
 
     def __init__(self, symmetry='decart', T0=273,
                  K=10, dk=10 ** (-6),
@@ -40,15 +41,15 @@ class Geometry():
         M = cnf.M
         nTissueStart = self.nTissueStart
 
-        if domain is 'air':
-            if bound is 'nStart':
+        if domain == 'air':
+            if bound == 'nStart':
                 normal = [-1, 0]
                 if only:
                     coordinates = np.array([[0, m] for m in only])
                 else:
                     coordinates = np.array([[0, m] for m in np.delete(np.arange(M), without)])
                 return Boundary(coordinates, normal)
-            if bound is 'nEnd':
+            if bound == 'nEnd':
                 normal = [1, 0]
                 if only:
                     coordinates = np.array([[nTissueStart - 1, m] for m in only])
@@ -56,14 +57,14 @@ class Geometry():
                     coordinates = np.array([[nTissueStart - 1, m] for m in np.delete(np.arange(M), without)])
                 return Boundary(coordinates, normal)
 
-            if bound is 'mStart':
+            if bound == 'mStart':
                 normal = [0, -1]
                 if only:
                     coordinates = np.array([[n, 0] for n in only])
                 else:
                     coordinates = np.array([[n, 0] for n in np.delete(np.arange(nTissueStart), without)])
                 return Boundary(coordinates, normal)
-            if bound is 'mEnd':
+            if bound == 'mEnd':
                 normal = [0, 1]
                 if only:
                     coordinates = np.array([[n, M - 1] for n in only])
@@ -71,15 +72,15 @@ class Geometry():
                     coordinates = np.array([[n, M - 1] for n in np.delete(np.arange(nTissueStart), without)])
                 return Boundary(coordinates, normal)
 
-        if domain is 'tissue':
-            if bound is 'nStart':
+        if domain == 'tissue':
+            if bound == 'nStart':
                 normal = [-1, 0]
                 if only:
                     coordinates = np.array([[nTissueStart, m] for m in only])
                 else:
                     coordinates = np.array([[nTissueStart, m] for m in np.delete(np.arange(M), without)])
                 return Boundary(coordinates, normal)
-            if bound is 'nEnd':
+            if bound == 'nEnd':
                 normal = [1, 0]
                 if only:
                     coordinates = np.array([[N - 1, m] for m in only])
@@ -87,14 +88,14 @@ class Geometry():
                     coordinates = np.array([[N - 1, m] for m in np.delete(np.arange(M), without)])
                 return Boundary(coordinates, normal)
 
-            if bound is 'mStart':
+            if bound == 'mStart':
                 normal = [0, -1]
                 if only:
                     coordinates = np.array([[n, 0] for n in only])
                 else:
                     coordinates = np.array([[n, 0] for n in np.delete(np.arange(nTissueStart, N), without)])
                 return Boundary(coordinates, normal)
-            if bound is 'mEnd':
+            if bound == 'mEnd':
                 normal = [0, 1]
                 if only:
                     coordinates = np.array([[n, M - 1] for n in only])
@@ -117,8 +118,8 @@ class Geometry():
 
         coordinate = []
         if internal:
-            for n in range(1,N-1):
-                for m in range(1,M-1):
+            for n in range(1, N - 1):
+                for m in range(1, M - 1):
                     if ((domain_matrix[n][m] == name) &
                             (domain_matrix[n + 1][m] == name) & (domain_matrix[n - 1][m] == name) &
                             (domain_matrix[n][m + 1] == name) & (domain_matrix[n][m - 1] == name)):
@@ -137,6 +138,12 @@ class Geometry():
         nTissueStart = self.nTissueStart
         return N - nTissueStart, M
 
+    def get_air_shape(self):
+        cnf = self.cnf
+        M = cnf.M
+        nTissueStart = self.nTissueStart
+        return nTissueStart, M
+
 
 class Boundary():
     def __init__(self, coordinates, normal):
@@ -147,7 +154,7 @@ class Boundary():
 class Properties():
     air_properties = {
         'eps': 1,
-        'mobility': 0,
+        'mobility': 10 ** (-10),
         'ion_concentration': 0,
 
         'absorbtion_koef': 0,
@@ -196,22 +203,51 @@ class Properties():
         self.cnf = cnf
         self.geometry = geometry
 
-    def get_property_table(self, property, temperature, state):
+    def get_property_table(self, property_name, temperature, state):
         cnf = self.cnf
         N = cnf.N
         M = cnf.M
+        F = cnf.F
+        R = cnf.R
+        T0 = cnf.T0
+        geometry = self.geometry
+        # temperature = np.concatenate((np.zeros((geometry.get_air_shape())), temperature))
+        # state = np.concatenate((np.zeros((geometry.get_air_shape())), state))
 
-        tissue_matrix = self.geometry.get_domain('tissue')
-        air_matrix = np.ones((N, M)) - tissue_matrix
+        # tissue_matrix = self.geometry.get_domain_matrix('tissue')
+        # air_matrix = np.ones((N, M)) - tissue_matrix
+        air_matrix = np.ones((geometry.get_air_shape()))
+        tissue_matrix = np.ones((geometry.get_tissue_shape()))
         # TODO: create temperature and condition dependence
-        air_properties = self.air_properties[property] * state
-        tissue_properties = self.tissue_properties_native[property] * state
+        air_properties = self.air_properties
+        tissue_properties = self.tissue_properties_native
 
-        return tissue_matrix * tissue_properties + air_properties * air_matrix
+        if property_name == 'sigma':
+            air_properties_matrix = F * F * air_properties['mobility'] * air_properties[
+                'ion_concentration'] * air_matrix
+            tissue_properties_matrix = F * F * tissue_properties['mobility'] * tissue_properties[
+                'ion_concentration'] * tissue_matrix
+        elif property_name == 'diff_ion':
+            air_properties_matrix = R * air_properties['mobility'] * T0 * air_matrix
+            tissue_properties_matrix = R * tissue_properties['mobility'] * temperature
+        else:
+            air_properties_matrix = air_properties[property_name] * air_matrix
+            tissue_properties_matrix = tissue_properties[property_name] * tissue_matrix
+
+        return np.concatenate((air_properties_matrix, tissue_properties_matrix))
 
     def get_property_table_unhomo(self, property, temperature, state):
-        #TODO:
-        pass
+        property_table_homo = self.get_property_table(property, temperature, state)
+        property_table_unhomo = np.array(
+            [0.25 * (property_table_homo[1:-1, 2:] + property_table_homo[1:-1, :-2] +
+                     property_table_homo[2:, 1:-1] + property_table_homo[:-2, 1:-1]),
+             0.5 * (property_table_homo[1:-1, 1:-1] + property_table_homo[:-2, 1:-1]),
+             0.5 * (property_table_homo[1:-1, 1:-1] + property_table_homo[2:, 1:-1]),
+             0.5 * (property_table_homo[1:-1, 1:-1] + property_table_homo[1:-1, :-2]),
+             0.5 * (property_table_homo[1:-1, 1:-1] + property_table_homo[1:-1, 2:])]
+        )
+        return property_table_unhomo
+
 
 class Conditions():
     def __init__(self, cnf, geometry,
@@ -272,7 +308,10 @@ if __name__ == '__main__':
     property = Properties(cnf, geometry)
     temp = cnf.T0 * np.ones((cnf.N, cnf.M))
     cond = np.ones((cnf.N, cnf.M))
-    # print(property.get_property_table('eps', temp, cond))
-    print(geometry.get_domain_coordinates('tissue', internal=True))
+    print(property.get_property_table('eps', temp, cond))
+    print(property.get_property_table('sigma', temp, cond))
+    print(property.get_property_table('diff_ion', temp, cond))
+    # print(property.get_property_table_unhomo('eps', temp, cond))
+    # print(geometry.get_domain_coordinates('tissue', internal=True))
 
     sources = Sources(cnf, geometry)

@@ -6,8 +6,8 @@ import scipy.sparse as sp
 class Solver():
     def __init__(self, cnf, geometry, property, conditions, sources):
         self.cnf = cnf
-        N = cnf.N
-        M = cnf.M
+        # N = cnf.N
+        # M = cnf.M
 
         self.geometry = geometry
         # tissue_N, tissue_M = geometry.get_tissue_shape()
@@ -85,6 +85,7 @@ class Solver():
     def create_electrodiffusion_system_matrix(self):
         cnf = self.cnf
         eps0 = cnf.eps0
+        div_eps0 = 1 / eps0
         N = cnf.N
         M = cnf.M
 
@@ -94,42 +95,73 @@ class Solver():
 
         result = self.result
         temp = result['temp'][-1]
-        status = result['status'][-1]
+        status = result['state'][-1]
 
-        #TODO: Разобраться с получением свойств в нужной области
         property = self.property
-        eps = property.get_property('eps', temp, status)
+        eps = property.get_property_table('eps', temp, status)
         sigma = property.get_property_table('sigma', temp, status)
         diff_ion = property.get_property_table_unhomo('diff_ion', temp, status)
-
 
         equa_num = len(domain_air_coordinates)
         row = np.arange(equa_num)
         col = np.array([coo[0] * M + coo[1] for coo in domain_air_coordinates])
         data = np.ones(equa_num)
+        data_plus = div_eps0 / eps[domain_air_coordinates[:, 0], domain_air_coordinates[:, 1]]
 
         poison_air_matrix = (
                 sp.coo_matrix((-4 * data, (row, col)), shape=(equa_num, 2 * N * M)) +
-                sp.coo_matrix((1 * data, (row, col + 1)), shape=(equa_num, 2 * N * M)) +
-                sp.coo_matrix((1 * data, (row, col - 1)), shape=(equa_num, 2 * N * M)) +
-                sp.coo_matrix((1 * data, (row, col + M)), shape=(equa_num, 2 * N * M)) +
-                sp.coo_matrix((1 * data, (row, col - M)), shape=(equa_num, 2 * N * M)) +
-                sp.coo_matrix((1 * data, (row, col + M * N)), shape=(equa_num, 2 * N * M))
+                sp.coo_matrix((data, (row, col + 1)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data, (row, col - 1)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data, (row, col + M)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data, (row, col - M)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data_plus, (row, col + M * N)), shape=(equa_num, 2 * N * M))
         )
 
         equa_num = len(domain_air_coordinates)
         row = np.arange(equa_num)
         col = np.array([coo[0] * M + coo[1] for coo in domain_air_coordinates]) + M * N
-        data = np.ones(equa_num)
-
+        data = diff_ion[:, domain_air_coordinates[:, 0] - 1, domain_air_coordinates[:, 1] - 1]
+        data_plus = div_eps0 * (sigma[domain_air_coordinates[:, 0], domain_air_coordinates[:, 1]] /
+                                eps[domain_air_coordinates[:, 0], domain_air_coordinates[:, 1]])
         germgolc_air_matrix = (
-                sp.coo_matrix(((-4 + 1) * data, (row, col)), shape=(equa_num, 2 * N * M)) +
-                sp.coo_matrix((1 * data, (row, col + 1)), shape=(equa_num, 2 * N * M)) +
-                sp.coo_matrix((1 * data, (row, col - 1)), shape=(equa_num, 2 * N * M)) +
-                sp.coo_matrix((1 * data, (row, col + M)), shape=(equa_num, 2 * N * M)) +
-                sp.coo_matrix((1 * data, (row, col - M)), shape=(equa_num, 2 * N * M))
+                sp.coo_matrix((-4 * data[0] - data_plus, (row, col)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data[4], (row, col + 1)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data[3], (row, col - 1)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data[2], (row, col + M)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data[1], (row, col - M)), shape=(equa_num, 2 * N * M))
         )
 
+        equa_num = len(domain_tissue_coordinates)
+        row = np.arange(equa_num)
+        col = np.array([coo[0] * M + coo[1] for coo in domain_tissue_coordinates])
+        data = np.ones(equa_num)
+        data_plus = div_eps0 / eps[domain_tissue_coordinates[:, 0], domain_tissue_coordinates[:, 1]]
+
+        poison_tissue_matrix = (
+                sp.coo_matrix((-4 * data, (row, col)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data, (row, col + 1)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data, (row, col - 1)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data, (row, col + M)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data, (row, col - M)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data_plus, (row, col + M * N)), shape=(equa_num, 2 * N * M))
+        )
+
+        equa_num = len(domain_tissue_coordinates)
+        row = np.arange(equa_num)
+        col = np.array([coo[0] * M + coo[1] for coo in domain_tissue_coordinates]) + M * N
+        data = diff_ion[:, domain_tissue_coordinates[:, 0] - 1, domain_tissue_coordinates[:, 1] - 1]
+        data_plus = div_eps0 * (sigma[domain_tissue_coordinates[:, 0], domain_tissue_coordinates[:, 1]] /
+                                eps[domain_tissue_coordinates[:, 0], domain_tissue_coordinates[:, 1]])
+        germgolc_tissue_matrix = (
+                sp.coo_matrix((-4 * data[0] - data_plus, (row, col)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data[4], (row, col + 1)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data[3], (row, col - 1)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data[2], (row, col + M)), shape=(equa_num, 2 * N * M)) +
+                sp.coo_matrix((data[1], (row, col - M)), shape=(equa_num, 2 * N * M))
+        )
+
+        system_matrix = sp.vstack(
+            [poison_air_matrix, germgolc_air_matrix, poison_tissue_matrix, germgolc_tissue_matrix])
         return sp.dia_matrix((np.ones(2 * N * M), 0), shape=(2 * N * M, 2 * N * M))
 
     def create_electrodiffusion_free_vector(self):

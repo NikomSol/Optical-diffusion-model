@@ -76,7 +76,8 @@ conditions = Conditions(
 
 
 def gauss(x, y, t):
-    pass
+    #TODO: gauss function
+    return x+y
 
 
 sources = Sources(cnf, geometry, optic=gauss)
