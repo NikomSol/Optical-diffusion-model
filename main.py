@@ -1,90 +1,52 @@
-from helper_classes import Config, Geometry, Properties, Conditions, Sources
-from solver import Solver
+from input import cnf, properties, condition_start  # dict
+from input import condition_boundary_optic, condition_boundary_electric, condition_boundary_termal  # func(T,g)
+from combiner import solver, step_solver, calc_impedance
+
+import matplotlib.pyplot as plt
 import numpy as np
+import csv
+import pandas as pd
 
-cnf = Config(K=10, dk=10 ** (-6),
-             N=9, dn=10 ** (-6),
-             M=9, dm=10 ** (-6),
-             symmetry='decart',
-             T0=273)
-N = cnf.N
-M = cnf.M
+N = cnf['N']
+M = cnf['M']
+K = cnf['K']
+dn = cnf['dn']
+dm = cnf['dm']
+dk = cnf['dk']
 
-# 'slice' -  воздух, потом ткань по слоям, 'internal' - одна область в другой
-nTissueStart = 5
-geometry = Geometry(cnf, type="slice", nTissueStart=nTissueStart)
+# npsol_step = step_solver(cnf, properties,
+#                        condition_start['T'],
+#                        condition_start['g'],
+#                        condition_boundary_optic,
+#                        condition_boundary_electric,
+#                        condition_boundary_termal)
 
-# Границы задаются в отдельном формате, можно просто как список координат и вектор нормали
-bound_air_nStart = geometry.get_bound('air', 'nStart')
-bound_air_nEnd = geometry.get_bound('air', 'nEnd')
-bound_air_mStart = geometry.get_bound('air', 'mStart')
-bound_air_mEnd = geometry.get_bound('air', 'mEnd')
+# sol_all = solver(cnf, properties,
+#                  condition_start,
+#                  condition_boundary_optic,
+#                  condition_boundary_electric,
+#                  condition_boundary_termal)
 
-bound_tissue_nStart = geometry.get_bound('tissue', 'nStart')
-bound_tissue_nEnd = geometry.get_bound('tissue', 'nEnd')
-bound_tissue_mStart = geometry.get_bound('tissue', 'mStart')
-bound_tissue_mEnd = geometry.get_bound('tissue', 'mEnd')
-
-bound_air_electrode_1 = geometry.get_bound('air', 'nEnd', only=[3])
-bound_air_electrode_2 = geometry.get_bound('air', 'nEnd', only=[5])
-bound_air_non_electrode = geometry.get_bound('air', 'nEnd', without=[3, 5])
-bound_tissue_electrode_1 = geometry.get_bound('tissue', 'nStart', only=[3])
-bound_tissue_electrode_2 = geometry.get_bound('tissue', 'nStart', only=[5])
-bound_tissue_non_electrode = geometry.get_bound('tissue', 'nStart', without=[3, 5])
-
-domain_tissue = geometry.get_domain_matrix('tissue')
-# Свойства различны у разных областей
-property = Properties(cnf, geometry)
-
-# Граничные условия могут быть Дирихле, Нейман, Ньютон-Рихман, Непрерывность
-conditions = Conditions(cnf, geometry, property)
-
-conditions.termo_start = cnf.T0 * np.ones((geometry.get_tissue_shape()))
-
-conditions.state_start = np.ones((geometry.get_tissue_shape()))
-
-conditions.Newton('heat_transfer', bound_tissue_nStart, cnf.T0 * np.ones(M), h='h')
-conditions.Neumann('heat_transfer', bound_tissue_nEnd, np.zeros(M))
-conditions.Neumann('heat_transfer', bound_tissue_mStart, np.zeros(N))
-conditions.Neumann('heat_transfer', bound_tissue_mEnd, np.zeros(N))
-
-conditions.Newton('light_transfer', bound_tissue_nStart, np.zeros(M), h='A')
-conditions.Newton('light_transfer', bound_tissue_nEnd, np.zeros(M), h='D')
-conditions.Neumann('light_transfer', bound_tissue_mStart, np.zeros(N))
-conditions.Newton('light_transfer', bound_tissue_mEnd, np.zeros(N), h='D')
-
-conditions.Neumann('charge', bound_tissue_nStart, np.zeros(M))
-conditions.Dirichlet('charge', bound_tissue_nEnd, np.zeros(M))
-conditions.Neumann('charge', bound_tissue_mStart, np.zeros(N))
-conditions.Dirichlet('charge', bound_tissue_mEnd, np.zeros(N))
-
-conditions.Continious('potential', bound_tissue_non_electrode, bound_air_non_electrode, 'ones', 'eps')
-conditions.Dirichlet('potential', bound_tissue_electrode_1, [1])
-conditions.Dirichlet('potential', bound_air_electrode_1, [1])
-conditions.Dirichlet('potential', bound_tissue_electrode_2, [-1])
-conditions.Dirichlet('potential', bound_air_electrode_2, [-1])
-
-conditions.Neumann('potential', bound_tissue_nEnd, np.zeros(M))
-conditions.Neumann('potential', bound_tissue_mStart, np.zeros(N))
-conditions.Neumann('potential', bound_tissue_mEnd, np.zeros(N))
-
-conditions.Neumann('potential', bound_air_nStart, np.zeros(M))
-conditions.Neumann('potential', bound_air_mStart, np.zeros(N))
-conditions.Neumann('potential', bound_air_mEnd, np.zeros(N))
+# for k in range(K):
+#     plt.matshow(sol_all['g'][k])
+#     plt.colorbar()
 
 
-def gauss(x, y, t):
-    # TODO: gauss function
-    return x + y
+# print(sol_all['u'][:,cnf['NAir'],cnf['el2_M']])
+# plt.plot(sol_all['u'][-1,:,cnf['el1_M']])
+# plt.show()
 
+timeGrid = dk * np.arange(K+1)
+# u_t = sol_all['u'][:, cnf['NAir'], cnf['el2_M']]
+#
+# df = pd.DataFrame(np.array([timeGrid, u_t]).transpose())
+# df.to_csv('u(t) T.csv', index=False)
 
-sources = Sources(cnf, geometry, optic=gauss)
+df_u_Tg = pd.read_csv('u(t) Tg.csv', delimiter=',')
+df_u_T = pd.read_csv('u(t) T.csv', delimiter=',')
+df_u_g = pd.read_csv('u(t) g.csv', delimiter=',')
 
-solution = Solver(cnf, geometry, property, conditions, sources)
-# equations {'E': elecrtodiffusion, 'O': light transfer, 'T': heat transfer}
-solution.solve(equation={'E'})
-
-print(solution.result['u'])
-
-solution.plot3D(z='T', y='n', x='k', slices=[1])
-solution.export(x='n', y='T', slices=[1, 2], file_name="result.csv")
+plt.plot(timeGrid, df_u_Tg['1'])
+plt.plot(timeGrid, df_u_T['1'])
+plt.plot(timeGrid, df_u_g['1'])
+plt.show()
